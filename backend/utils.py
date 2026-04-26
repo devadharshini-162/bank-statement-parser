@@ -30,7 +30,7 @@ def transactions_to_dataframe(transactions):
             if df[col].dtype == "object":
                 df[col] = df[col].replace(r'[\$,]', '', regex=True)
                 
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+            df[col] = pd.to_numeric(df[col], errors='coerce').round(2)
             
     return df
 
