@@ -63,7 +63,6 @@ def extract_transactions_from_digital(text):
 def extract_transactions_from_images(base64_images):
     """
     Sends base64 encoded images of a scanned PDF to Gemini Vision to extract bank transactions.
-    We instruct the model to return ONLY a JSON array with specific keys.
     """
     prompt = """
     Please look at these bank statement images and extract all bank transactions.
@@ -74,28 +73,30 @@ def extract_transactions_from_images(base64_images):
     """
     
     try:
-        # Build the message content as a list
+        # Build contents list with images and prompt
         contents = []
         
-        # First add each image as an inline_data part
         for img_base64 in base64_images:
+            # Decode base64 back to raw bytes
+            img_bytes = base64.b64decode(img_base64)
+            # Create a Blob part directly from bytes
             contents.append(
                 types.Part.from_bytes(
-                    data=base64.b64decode(img_base64),
+                    data=img_bytes,
                     mime_type="image/jpeg"
-                    )
                 )
-            
-        # Add the text prompt at the end
-        contents.append(prompt)
+            )
         
-        # Send the list of contents to Gemini
+        # Add text prompt at the end
+        contents.append(types.Part.from_text(text=prompt))
+        
+        # Send to Gemini
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=contents
-            )
+        )
         
-        # Clean the response text by removing potential markdown backticks
+        # Clean response
         raw_output = response.text.strip()
         if raw_output.startswith("```json"):
             raw_output = raw_output[7:]
@@ -103,10 +104,8 @@ def extract_transactions_from_images(base64_images):
             raw_output = raw_output[3:]
         if raw_output.endswith("```"):
             raw_output = raw_output[:-3]
-            
         raw_output = raw_output.strip()
         
-        # Parse the cleaned text as JSON
         transactions = json.loads(raw_output)
         return transactions
         
@@ -116,9 +115,9 @@ def extract_transactions_from_images(base64_images):
         return []
     except Exception as e:
         print(f"An unexpected error occurred during image extraction: {e}")
+        import traceback
+        traceback.print_exc()
         return []
-
-
 def extract_transactions(file_path):
     """
     Main function that orchestrates the flow. It uses the parser to check if the PDF

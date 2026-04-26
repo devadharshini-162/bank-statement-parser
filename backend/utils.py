@@ -60,10 +60,15 @@ def save_to_excel(dataframe, output_path):
             # Calculate the max length of data in this column to set the width
             # We map strings to length and find max. If column is empty, handle carefully
             try:
-                max_len = max(
-                    dataframe[column_title].astype(str).map(len).max(), 
-                    len(str(column_title))
-                )
+                # Handle potential float NaNs by filling with empty string first
+                col_series = dataframe[column_title].fillna('')
+                max_val = col_series.astype(str).map(len).max()
+                
+                # If dataframe has 0 rows, max() returns NaN
+                if pd.isna(max_val):
+                    max_len = len(str(column_title))
+                else:
+                    max_len = max(int(max_val), len(str(column_title)))
             except ValueError:
                 max_len = len(str(column_title))
                 
@@ -114,11 +119,11 @@ def validate_transactions(dataframe):
                 anomalies.append(index)
 
     return {
-        "total_debits": float(total_debits),
-        "total_credits": float(total_credits),
-        "anomalies": anomalies,
-        "is_valid": len(anomalies) == 0
-    }
+    "total_debits": float(total_debits) if total_debits else 0.0,
+    "total_credits": float(total_credits) if total_credits else 0.0,
+    "anomalies": list(anomalies) if anomalies else [],
+    "is_valid": len(anomalies) == 0
+}
 
 def generate_output_filename(original_filename):
     """

@@ -88,7 +88,7 @@ async def parse_statement(file: UploadFile = File(...)):
             "total_transactions": len(transactions),
             "total_debits": validation_results["total_debits"],
             "total_credits": validation_results["total_credits"],
-            "anomalies_count": len(validation_results["anomalies"]),
+            "anomalies_count": len(validation_results["anomalies"]) if isinstance(validation_results["anomalies"], list) else 0,
             "is_valid": validation_results["is_valid"],
             "excel_download_path": f"/download/{output_filename}"
         }
