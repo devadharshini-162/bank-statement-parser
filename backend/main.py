@@ -82,16 +82,17 @@ async def parse_statement(file: UploadFile = File(...)):
         # Output the parsed DataFrame into formatted Excel
         save_to_excel(df, output_path)
 
-        # Return a structured JSON response containing everything requested 
         return {
-            "filename": output_filename,
-            "total_transactions": len(transactions),
-            "total_debits": validation_results["total_debits"],
-            "total_credits": validation_results["total_credits"],
-            "anomalies_count": len(validation_results["anomalies"]) if isinstance(validation_results["anomalies"], list) else 0,
-            "is_valid": validation_results["is_valid"],
-            "excel_download_path": f"/download/{output_filename}"
-        }
+    "filename": output_filename,
+    "total_transactions": len(transactions),
+    "total_debits": validation_results["total_debits"],
+    "total_credits": validation_results["total_credits"],
+    "anomalies_count": len(validation_results["anomalies"]) if isinstance(validation_results["anomalies"], list) else 0,
+    "anomalies": validation_results["anomalies"] if isinstance(validation_results["anomalies"], list) else [],
+    "is_valid": validation_results["is_valid"],
+    "excel_download_path": f"/download/{output_filename}",
+    "transactions": transactions
+}
 
     except HTTPException:
         # Re-raise already raised HTTP Exceptions so they aren't caught by a general Exception
