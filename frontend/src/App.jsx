@@ -489,24 +489,12 @@ export default function App() {
             <>
               <DownloadBar result={result} onReset={handleReset} />
               <StatCards data={result} />
-              <div className="glass fade-up-3" style={{
-                padding: "2rem", textAlign: "center",
-                color: "var(--text-secondary)", fontSize: "14px"
-              }}>
-                <FileText size={32} color="var(--border)"
-                  style={{ margin: "0 auto 1rem", display: "block" }} />
-                <p style={{
-                  fontFamily: "Cabinet Grotesk", fontWeight: 700,
-                  color: "var(--text-primary)", fontSize: "1rem"
-                }}>
-                  Excel file ready
-                </p>
-                <p style={{ marginTop: 6, fontSize: "13px", lineHeight: 1.7 }}>
-                  {result.total_transactions} transactions extracted
-                  &nbsp;·&nbsp; Debits: {result.total_debits?.toFixed(2)}
-                  &nbsp;·&nbsp; Credits: {result.total_credits?.toFixed(2)}
-                </p>
-              </div>
+              {result.transactions && result.transactions.length > 0 && (
+                <ResultsTable
+                  transactions={result.transactions}
+                  anomalies={result.anomalies || []}
+                />
+              )}
             </>
           )}
 
