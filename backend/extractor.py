@@ -1,7 +1,8 @@
 import os
 import json
 import base64
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 
 # Import our custom parser functions
@@ -10,11 +11,7 @@ from parser import is_digital_pdf, extract_text_from_digital_pdf, pdf_to_base64_
 # Load environment variables from .env file
 load_dotenv()
 
-# Configure the Gemini API with the key from the environment variable
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
-# Initialize the Gemini model as specified
-model = genai.GenerativeModel("gemini-2.5-flash")
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 def extract_transactions_from_digital(text):
     """
@@ -34,7 +31,10 @@ def extract_transactions_from_digital(text):
 
     try:
         # Send the prompt to the Gemini model
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+            )
         
         # Clean the response text by removing potential markdown backticks
         raw_output = response.text.strip()
@@ -79,19 +79,21 @@ def extract_transactions_from_images(base64_images):
         
         # First add each image as an inline_data part
         for img_base64 in base64_images:
-            # The genai SDK supports dict representations of Blobs
-            # We provide the mime_type and the base64 data
-            image_part = {
-                "mime_type": "image/jpeg",
-                "data": img_base64
-            }
-            contents.append(image_part)
+            contents.append(
+                types.Part.from_bytes(
+                    data=base64.b64decode(img_base64),
+                    mime_type="image/jpeg"
+                    )
+                )
             
         # Add the text prompt at the end
         contents.append(prompt)
         
         # Send the list of contents to Gemini
-        response = model.generate_content(contents)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=contents
+            )
         
         # Clean the response text by removing potential markdown backticks
         raw_output = response.text.strip()
