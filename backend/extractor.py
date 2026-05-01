@@ -4,6 +4,7 @@ import base64
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from tenacity import retry, wait_exponential, stop_after_attempt
 
 # Import our custom parser functions
 from parser import is_digital_pdf, extract_text_from_digital_pdf, pdf_to_base64_images
@@ -12,6 +13,14 @@ from parser import is_digital_pdf, extract_text_from_digital_pdf, pdf_to_base64_
 load_dotenv()
 
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+
+@retry(wait=wait_exponential(multiplier=1.5, min=2, max=10), stop=stop_after_attempt(4))
+def generate_content_with_retry(model, contents):
+    """
+    Wraps the Gemini API call with automatic retries to gracefully 
+    handle 503 Service Unavailable errors.
+    """
+    return client.models.generate_content(model=model, contents=contents)
 
 def extract_transactions_from_digital(text):
     """
@@ -37,7 +46,7 @@ def extract_transactions_from_digital(text):
 
     try:
         # Send the prompt to the Gemini model
-        response = client.models.generate_content(
+        response = generate_content_with_retry(
             model="gemini-2.5-flash",
             contents=prompt
             )
@@ -103,7 +112,7 @@ def extract_transactions_from_images(base64_images):
         contents.append(types.Part.from_text(text=prompt))
         
         # Send to Gemini
-        response = client.models.generate_content(
+        response = generate_content_with_retry(
             model="gemini-2.5-flash",
             contents=contents
         )
