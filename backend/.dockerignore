@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+venv_bank/
+.env
+
+# Uploads and Outputs
+uploads/
+outputs/
+history.db
+
+# Docker
+
