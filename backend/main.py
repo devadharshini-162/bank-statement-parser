@@ -9,6 +9,10 @@ import json
 # Import custom logic specific to our Parser project
 from extractor import extract_transactions
 from utils import transactions_to_dataframe, save_to_excel, validate_transactions, generate_output_filename
+from database import init_db, log_processing, get_processing_history
+
+# Initialize SQLite Database
+init_db()
 
 # Create a FastAPI app instance with metadata
 app = FastAPI(title="Bank Statement Parser API", version="1.0.0")
@@ -82,6 +86,17 @@ async def parse_statement(file: UploadFile = File(...)):
         # Output the parsed DataFrame into formatted Excel
         save_to_excel(df, output_path)
 
+        # Log to SQLite history
+        anomalies_cnt = len(validation_results["anomalies"]) if isinstance(validation_results["anomalies"], list) else 0
+        log_processing(
+            filename=file.filename,
+            total_transactions=len(transactions),
+            total_debits=validation_results["total_debits"],
+            total_credits=validation_results["total_credits"],
+            anomalies_count=anomalies_cnt,
+            is_valid=validation_results["is_valid"]
+        )
+
         return {
     "filename": output_filename,
     "total_transactions": len(transactions),
@@ -124,3 +139,13 @@ def download_excel(filename: str):
         filename=filename, 
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
+@app.get("/history")
+def read_history():
+    """
+    Returns the processing history from the SQLite database.
+    """
+    try:
+        return get_processing_history()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -22,8 +22,14 @@ def extract_transactions_from_digital(text):
     Please extract all bank transactions from the following text.
     Return ONLY a valid JSON array — no extra text, no markdown, no backticks.
     Each transaction object in the array must have these exact keys: 
-    date, description, debit, credit, balance.
+    date, description, category, debit, credit, balance.
     If debit or credit is empty for a transaction, use null.
+
+    For 'category', choose the best fit from: 
+    Food, Transport, Salary, EMI, Utilities, ATM, UPI, Charges, Other.
+    
+    Note: Handle varied Indian bank formats carefully (e.g. Standard Chartered, SBI, HDFC). 
+    Account for multi-line transaction descriptions. Ensure 'debit', 'credit' and 'balance' only contain numbers.
     
     Text:
     {text}
@@ -68,8 +74,14 @@ def extract_transactions_from_images(base64_images):
     Please look at these bank statement images and extract all bank transactions.
     Return ONLY a valid JSON array — no extra text, no markdown, no backticks.
     Each item in the array must be an object with the following exact keys:
-    date, description, debit, credit, balance.
+    date, description, category, debit, credit, balance.
     If debit or credit is empty for a transaction, use null.
+
+    For 'category', choose the best fit from: 
+    Food, Transport, Salary, EMI, Utilities, ATM, UPI, Charges, Other.
+    
+    Note: Handle varied Indian bank formats carefully (e.g. Standard Chartered, SBI, HDFC).
+    Account for multi-line transaction descriptions. Ensure 'debit', 'credit' and 'balance' only contain numbers.
     """
     
     try:

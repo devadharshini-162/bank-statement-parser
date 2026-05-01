@@ -1,0 +1,125 @@
+
+<style>
+.wrap { font-family: var(--font-sans); }
+.sec { font-size: 11px; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin: 1.4rem 0 0.6rem; }
+.card { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.2rem; margin-bottom: 8px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.cell { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 12px; font-size: 12px; color: var(--color-text-primary); line-height: 1.65; }
+.cell b { display: block; font-size: 11px; font-weight: 700; color: var(--color-text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.badge { font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 20px; display: inline-block; margin-bottom: 6px; }
+.title { font-size: 13px; font-weight: 700; color: var(--color-text-primary); margin-bottom: 4px; }
+.desc { font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; }
+.bullet { font-size: 12px; color: var(--color-text-primary); line-height: 1.9; }
+.bullet span { color: var(--color-text-secondary); }
+</style>
+
+<div class="wrap">
+
+<div class="sec">What you have built — done and working</div>
+<div class="card" style="background:var(--color-background-success)">
+  <div class="row3">
+    <div class="cell">
+      <b>PDF Intelligence Layer</b>
+      PyMuPDF detects digital vs scanned PDFs automatically. Tesseract OCR as fallback. Gemini Vision for scanned pages. Works on any Indian bank format.
+    </div>
+    <div class="cell">
+      <b>AI Extraction Engine</b>
+      Gemini 2.5 Flash reads raw text or images and returns structured JSON. Handles multi-date rows, UPI descriptions, ATM entries, interest credits — all edge cases.
+    </div>
+    <div class="cell">
+      <b>FastAPI Backend</b>
+      REST API with /parse and /download endpoints. File validation, UUID-based temp storage, anomaly detection, Excel export with auto-formatting. Swagger docs auto-generated.
+    </div>
+    <div class="cell">
+      <b>React Frontend</b>
+      Dark fintech UI with drag-and-drop upload, animated loading states, stat cards, transaction table with search, download button. Lucide icons, Cabinet Grotesk font.
+    </div>
+    <div class="cell">
+      <b>Data Processing</b>
+      Pandas cleans and rounds financial values to 2 decimal places. Validates totals, flags anomalies — transactions with neither debit nor credit, negative balances.
+    </div>
+    <div class="cell">
+      <b>GitHub</b>
+      Full project live at github.com/devadharshini-162/bank-statement-parser with proper commits, .gitignore, README. Clean commit history from day one.
+    </div>
+  </div>
+</div>
+
+<div class="sec">Real problem it solves — verified from CS firm</div>
+<div class="card">
+  <div class="row2">
+    <div class="cell">
+      <b>The Pain Point (Suvit + iLovePDF)</b>
+      Accountants in CS firms manually re-type every bank transaction from PDFs every month. Suvit's auto-import fails with value mismatches. OCR tools give inconsistent results. Hours wasted per client per month.
+    </div>
+    <div class="cell">
+      <b>Research confirms this is industry-wide</b>
+      Manual transaction entry prone to typos, last-minute GSTR-2B mismatches, and fragmented toolsets requiring frequent exports and imports are the top pain points across Indian CA firms in 2025. Your project directly addresses this.
+    </div>
+  </div>
+</div>
+
+<div class="sec">What to build next — prioritised for KAAR Tech drive</div>
+
+<div class="card">
+  <div class="badge" style="background:var(--color-background-danger);color:var(--color-text-danger)">Priority 1 — This week</div>
+  <div class="row3">
+    <div class="cell">
+      <b>Fix multi-bank support</b>
+      Fix the Standard Chartered parsing bug. Test on SBI, HDFC, Axis, Canara. Document accuracy per bank. Add "Tested on 5+ banks" to resume.
+    </div>
+    <div class="cell">
+      <b>Transaction categorisation</b>
+      Upgrade Gemini prompt to add a "category" field — Food, Transport, Salary, EMI, Utilities, ATM, UPI, Charges. Show colour-coded badges in UI table.
+    </div>
+    <div class="cell">
+      <b>Spending analytics charts</b>
+      Add Recharts dashboard — monthly spend bar chart, category donut chart, debit vs credit trend line. Makes it look like a real fintech product.
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="badge" style="background:var(--color-background-warning);color:var(--color-text-warning)">Priority 2 — Next week</div>
+  <div class="row3">
+    <div class="cell">
+      <b>Docker + deployment</b>
+      Dockerfile for backend, deploy on Render. Frontend on Vercel. Live URL to put on resume. Without this, project only exists on your laptop.
+    </div>
+    <div class="cell">
+      <b>Processing history</b>
+      SQLite table storing every parsed statement — filename, date, bank detected, transaction count, totals. History page in UI. Proves database knowledge.
+    </div>
+    <div class="cell">
+      <b>GitHub Actions CI</b>
+      Simple workflow — on every push, check Python syntax, validate imports. Shows DevOps awareness. Looks great on GitHub profile.
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="badge" style="background:var(--color-background-info);color:var(--color-text-info)">Priority 3 — Bonus</div>
+  <div class="row2">
+    <div class="cell">
+      <b>ROC / Comply Relax problem</b>
+      Same OCR + Gemini pipeline extended to extract company data from balance sheets and auto-populate ROC filing fields. Needs sample forms from your friend first.
+    </div>
+    <div class="cell">
+      <b>Demo video + polished README</b>
+      90-second screen recording showing full flow. Architecture diagram. Sample output screenshots. Embed in README. Recruiters watch before reading code.
+    </div>
+  </div>
+</div>
+
+<div class="sec">Your resume bullets — copy this for KAAR Tech</div>
+<div class="card" style="background:var(--color-background-secondary)">
+  <div class="bullet">
+    • Built <b>StatementAI</b> — an AI-powered bank statement parser using <b>Gemini Vision API + FastAPI</b>, processing both digital and scanned PDFs with automatic format detection<span> [Python, React, FastAPI, Gemini API, OCR]</span><br>
+    • Engineered a hybrid <b>PyMuPDF + Tesseract + Gemini Vision</b> pipeline handling multi-format Indian bank statements (SBI, HDFC, Axis, Standard Chartered)<span> with anomaly detection and mismatch flagging</span><br>
+    • Built <b>React dashboard</b> with drag-and-drop upload, real-time transaction table, spending analytics, and one-click Excel export<span> — solving manual data entry in CS accounting firms</span><br>
+    • Deployed full-stack app with <b>Docker on Render + Vercel</b> with automated CI pipeline using GitHub Actions<span> [add once deployed]</span>
+  </div>
+</div>
+
+</div>
