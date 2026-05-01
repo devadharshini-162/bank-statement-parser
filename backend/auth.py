@@ -11,7 +11,7 @@ security = HTTPBearer()
 
 # We need a secret signing key to create and verify our JSON Web Tokens (JWT).
 # Without this exact key, nobody can forge a token claiming to be an admin.
-SECRET_KEY = os.environ.get("JWT_SECRET", "super-secret-local-key-change-in-production")
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "your-fallback-secret-here")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # Tokens live for 7 days
 
