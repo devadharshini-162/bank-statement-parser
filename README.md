@@ -22,7 +22,7 @@
 ## 📸 Demo overview
 *(Placeholder: Record a 90-second screen recording showing the drag-and-drop flow, history loading, charts rendering, and excel export. Add a GIF or YouTube link here before your interview!)*
 
-![Dashboard Screenshot Placeholder](https://placehold.co/800x450/0f172a/00c896?text=Upload+StatementAI+Dashboard+Screenshot+Here)
+![Dashboard Screenshot Placeholder](Screenshot_of_page.png)
 
 ---
 
