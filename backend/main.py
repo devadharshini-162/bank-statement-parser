@@ -1,94 +1,118 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 import shutil
 import os
 import uuid
-import json
 
-# Import custom logic specific to our Parser project
+# Import our custom logic
 from extractor import extract_transactions
 from utils import transactions_to_dataframe, save_to_excel, validate_transactions, generate_output_filename
-from database import init_db, log_processing, get_processing_history
+from database import init_db, get_db, User, History
+from auth import get_password_hash, verify_password, create_access_token, get_current_user
+from aws_service import upload_to_s3, generate_presigned_url
 
-# Initialize SQLite Database
+# Initialize the Database tables
 init_db()
 
-# Create a FastAPI app instance with metadata
-app = FastAPI(title="Bank Statement Parser API", version="1.0.0")
+app = FastAPI(title="Bank Statement Parser API - SaaS Version")
 
-# Setup CORS (Cross-Origin Resource Sharing) middleware to allow cross-origin requests
-# This is especially useful when building a separate frontend later!
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # Allows all origins (e.g. localhost frontend calling the backend API)
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],      # Allows all HTTP methods (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],      # Allows all HTTP headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Define directory constants
 UPLOAD_DIR = "uploads"
 OUTPUT_DIR = "outputs"
-
-# Create folders synchronously if they don't already exist
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-@app.get("/")
-def read_root():
-    """
-    Basic health-check or welcome endpoint.
-    Returns a simple JSON indicating that the server is alive.
-    """
-    return {"message": "Bank Statement Parser API is running", "version": "1.0.0"}
+# =========================================================================
+# AUTHENTICATION ENDPOINTS
+# =========================================================================
 
+class UserAuthParams(BaseModel):
+    username: str
+    password: str
+
+@app.post("/signup")
+def create_user(user: UserAuthParams, db: Session = Depends(get_db)):
+    # Check if username exists
+    db_user = db.query(User).filter(User.username == user.username).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    
+    hashed_password = get_password_hash(user.password)
+    new_user = User(username=user.username, password_hash=hashed_password, role="ACCOUNTANT")
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return {"message": "User created successfully. You can now log in."}
+
+@app.post("/login")
+def login(user: UserAuthParams, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.username == user.username).first()
+    if not db_user or not verify_password(user.password, db_user.password_hash):
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+    
+    # Generate token
+    access_token = create_access_token(data={"sub": db_user.username, "role": db_user.role})
+    return {"access_token": access_token, "token_type": "bearer", "username": db_user.username, "role": db_user.role}
+
+# =========================================================================
+# SECURED API ENDPOINTS
+# =========================================================================
 
 @app.post("/parse")
-async def parse_statement(file: UploadFile = File(...)):
-    """
-    Core parsing endpoint. It handles a PDF upload, extracts AI transactions,
-    validates the result, saves to Excel, and returns stats.
-    """
-    # Validate that the uploaded file is a PDF
+async def parse_statement(
+    file: UploadFile = File(...), 
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user) # PROTECTS THE ROUTE
+):
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Invalid file type. Only PDF files are supported.")
 
-    # Create a unique temporary filename incorporating a UUID
+    # Get the user ID from the database using the username inside our token
+    db_user = db.query(User).filter(User.username == current_user["username"]).first()
+
     temp_filename = f"{uuid.uuid4()}_{file.filename}"
     temp_file_path = os.path.join(UPLOAD_DIR, temp_filename)
 
     try:
-        # Save the uploaded file temporarily to the working disk
         with open(temp_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Call the Gemini extractor process defined in extractor.py
         transactions = extract_transactions(temp_file_path)
 
-        # If it returns empty, likely AI couldn't parse it or it wasn't a bank statement
         if not transactions:
-            raise HTTPException(
-                status_code=422, 
-                detail="Failed to parse transactions. Ensure the file contains a valid bank statement."
-            )
+            raise HTTPException(status_code=422, detail="Failed to parse transactions.")
 
-        # Convert the dictionary output to a Pandas DataFrame
         df = transactions_to_dataframe(transactions)
-
-        # Validate extracted logic (totals, anomalies, etc.)
         validation_results = validate_transactions(df)
 
-        # Generate output filename (e.g., parsed_filename_timestamp.xlsx)
         output_filename = generate_output_filename(file.filename)
         output_path = os.path.join(OUTPUT_DIR, output_filename)
-
-        # Output the parsed DataFrame into formatted Excel
         save_to_excel(df, output_path)
 
-        # Log to SQLite history
+        # -----------------------------------------------------
+        # NEW CLOUD STORAGE: AWS S3 UPLOAD
+        # -----------------------------------------------------
+        # Upload the physically generated file to Amazon S3
+        upload_to_s3(output_path, output_filename)
+        
+        # Give the user a secure, expiring URL to download it directly from AWS
+        secure_download_url = generate_presigned_url(output_filename)
+
+        # Log history into the database and link it to the user
         anomalies_cnt = len(validation_results["anomalies"]) if isinstance(validation_results["anomalies"], list) else 0
-        log_processing(
+        
+        new_history = History(
+            user_id=db_user.id,
             filename=file.filename,
             total_transactions=len(transactions),
             total_debits=validation_results["total_debits"],
@@ -96,56 +120,65 @@ async def parse_statement(file: UploadFile = File(...)):
             anomalies_count=anomalies_cnt,
             is_valid=validation_results["is_valid"]
         )
+        db.add(new_history)
+        db.commit()
 
         return {
-    "filename": output_filename,
-    "total_transactions": len(transactions),
-    "total_debits": validation_results["total_debits"],
-    "total_credits": validation_results["total_credits"],
-    "anomalies_count": len(validation_results["anomalies"]) if isinstance(validation_results["anomalies"], list) else 0,
-    "anomalies": validation_results["anomalies"] if isinstance(validation_results["anomalies"], list) else [],
-    "is_valid": validation_results["is_valid"],
-    "excel_download_path": f"/download/{output_filename}",
-    "transactions": transactions
-}
+            "filename": output_filename,
+            "total_transactions": len(transactions),
+            "total_debits": validation_results["total_debits"],
+            "total_credits": validation_results["total_credits"],
+            "anomalies_count": anomalies_cnt,
+            "anomalies": validation_results["anomalies"] if isinstance(validation_results["anomalies"], list) else [],
+            "is_valid": validation_results["is_valid"],
+            "excel_download_path": secure_download_url,
+            "transactions": transactions
+        }
 
     except HTTPException:
-        # Re-raise already raised HTTP Exceptions so they aren't caught by a general Exception
         raise
     except Exception as e:
-        # Catch unexpected errors to avoid crashing the server without a clear message
         raise HTTPException(status_code=500, detail=str(e))
     finally:
-        # Clean up: Make absolutely sure the temporary uploaded PDF is deleted
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
 
+@app.get("/history")
+def read_history(
+    db: Session = Depends(get_db), 
+    current_user: dict = Depends(get_current_user) # PROTECTS THE ROUTE
+):
+    """Returns the processing history specifically for the logged-in user."""
+    db_user = db.query(User).filter(User.username == current_user["username"]).first()
+    
+    # If the user is an ADMIN, they get to see company-wide history
+    if db_user.role == "ADMIN":
+        histories = db.query(History).order_by(History.timestamp.desc()).all()
+    else:
+        # Otherwise, they only see their own history
+        histories = db.query(History).filter(History.user_id == db_user.id).order_by(History.timestamp.desc()).all()
+    
+    # SQLAlchemy objects need to be converted to dictionaries for FastAPI JSON serialization
+    result = []
+    for h in histories:
+        result.append({
+            "filename": h.filename,
+            "timestamp": h.timestamp.isoformat(),
+            "total_transactions": h.total_transactions,
+            "total_debits": h.total_debits,
+            "total_credits": h.total_credits,
+            "anomalies_count": h.anomalies_count,
+            "is_valid": h.is_valid
+        })
+    return result
 
 @app.get("/download/{filename}")
 def download_excel(filename: str):
-    """
-    Downloads an existing generated Excel file.
-    Takes a filename parameter and streams it back via FileResponse.
-    """
     file_path = os.path.join(OUTPUT_DIR, filename)
-
-    # If the requested file isn't in our outputs directory, return a clean 404 Error
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Excel file not found. It may have been deleted or the name is incorrect.")
-
-    # Return as an Excel download
+        raise HTTPException(status_code=404, detail="Excel file not found.")
     return FileResponse(
         path=file_path, 
         filename=filename, 
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-
-@app.get("/history")
-def read_history():
-    """
-    Returns the processing history from the SQLite database.
-    """
-    try:
-        return get_processing_history()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

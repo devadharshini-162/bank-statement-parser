@@ -54,3 +54,9 @@ uritemplate==4.2.0
 urllib3==2.6.3
 uvicorn==0.46.0
 websockets==16.0
+pyjwt
+passlib
+bcrypt
+boto3
+psycopg2-binary
+sqlalchemy==2.0.49

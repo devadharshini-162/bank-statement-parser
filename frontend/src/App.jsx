@@ -3,7 +3,7 @@ import axios from "axios";
 import {
   Upload, FileText, Zap, Download, RotateCcw,
   TrendingDown, TrendingUp, AlertTriangle, Hash,
-  CheckCircle, XCircle, Search, Activity, Wifi, Clock
+  CheckCircle, XCircle, Search, Activity, Wifi, Clock, User, Lock, LogOut
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis } from "recharts";
 
@@ -14,7 +14,7 @@ const formatCurrency = (val) =>
     ? `$${Number(val).toFixed(2)}`
     : "—";
 
-function Header({ onHistoryClick }) {
+function Header({ onHistoryClick, onLogout }) {
   return (
     <header className="fade-up" style={{
       padding: "1.75rem 2.5rem",
@@ -48,6 +48,15 @@ function Header({ onHistoryClick }) {
         }}>
           <Clock size={14} />
           History
+        </button>
+        <button onClick={onLogout} style={{
+          background: "none", border: "1px solid var(--border)", borderRadius: "8px",
+          padding: "6px 12px", color: "var(--red)", fontSize: "12px",
+          display: "flex", alignItems: "center", gap: "6px", cursor: "pointer",
+          fontWeight: 600, fontFamily: "Cabinet Grotesk", transition: "all 0.2s"
+        }}>
+          <LogOut size={14} />
+          Logout
         </button>
         <div style={{
           display: "flex", alignItems: "center", gap: 6,
@@ -328,7 +337,8 @@ function HistoryModal({ onClose }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get(`${API}/history`)
+    const token = localStorage.getItem("jwtToken");
+    axios.get(`${API}/history`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => { setHistory(res.data); setLoading(false); })
       .catch(err => { console.error(err); setLoading(false); });
   }, []);
@@ -561,18 +571,128 @@ function DownloadBar({ result, onReset }) {
   );
 }
 
+function AuthModal({ setToken }) {
+  const [isLogin, setIsLogin] = useState(true);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [msg, setMsg] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true); setError(""); setMsg("");
+    try {
+      if (isLogin) {
+        const { data } = await axios.post(`${API}/login`, { username, password });
+        localStorage.setItem("jwtToken", data.access_token);
+        setToken(data.access_token);
+      } else {
+        await axios.post(`${API}/signup`, { username, password });
+        setIsLogin(true);
+        setMsg("Account created! Please log in.");
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+      background: "var(--navy-2)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem", zIndex: 1000
+    }}>
+      <div className="mesh-bg" />
+      <div className="glass fade-up" style={{
+        width: "100%", maxWidth: 400, padding: "2.5rem 2rem", position: "relative", zIndex: 10
+      }}>
+        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: 14, margin: "0 auto 1rem",
+            background: "linear-gradient(135deg, #00c896, #0070c0)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Activity size={24} color="#080e1a" strokeWidth={2.5} />
+          </div>
+          <h2 style={{ fontFamily: "Cabinet Grotesk", fontWeight: 900, fontSize: "1.5rem" }}>
+            {isLogin ? "Welcome back" : "Create accountant account"}
+          </h2>
+          <p style={{ color: "var(--text-secondary)", fontSize: "13px", marginTop: 4 }}>
+            Secure access to StatementAI
+          </p>
+        </div>
+
+        {error && <p style={{ color: "var(--red)", fontSize: "12px", background: "rgba(255,77,109,0.1)", padding: "10px", borderRadius: "8px", marginBottom: "1rem", display: "flex", alignItems: "center", gap: 6 }}><AlertTriangle size={14} />{error}</p>}
+        {msg && <p style={{ color: "var(--emerald)", fontSize: "12px", background: "rgba(0,200,150,0.1)", padding: "10px", borderRadius: "8px", marginBottom: "1rem", display: "flex", alignItems: "center", gap: 6 }}><CheckCircle size={14} />{msg}</p>}
+
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div>
+            <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" }}>Username</label>
+            <div style={{ position: "relative" }}>
+              <User size={16} color="var(--text-secondary)" style={{ position: "absolute", left: 14, top: 12 }} />
+              <input type="text" required value={username} onChange={(e) => setUsername(e.target.value)} style={{
+                width: "100%", background: "var(--navy-3)", border: "1px solid var(--border)",
+                borderRadius: "10px", padding: "10px 14px 10px 40px", color: "white", outline: "none", fontSize: "14px"
+              }} placeholder="john_doe" />
+            </div>
+          </div>
+          
+          <div>
+            <label style={{ display: "block", fontSize: "11px", color: "var(--text-secondary)", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" }}>Password</label>
+            <div style={{ position: "relative" }}>
+              <Lock size={16} color="var(--text-secondary)" style={{ position: "absolute", left: 14, top: 12 }} />
+              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} style={{
+                width: "100%", background: "var(--navy-3)", border: "1px solid var(--border)",
+                borderRadius: "10px", padding: "10px 14px 10px 40px", color: "white", outline: "none", fontSize: "14px"
+              }} placeholder="••••••••" />
+            </div>
+          </div>
+
+          <button className="glow-btn" disabled={loading} style={{
+            width: "100%", padding: "12px", marginTop: "1rem", display: "flex", justifyContent: "center", alignItems: "center", gap: 8
+          }}>
+            {loading ? <div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : (isLogin ? "Sign In" : "Create Account")}
+          </button>
+        </form>
+
+        <p style={{ textAlign: "center", fontSize: "12px", color: "var(--text-secondary)", marginTop: "1.5rem" }}>
+          {isLogin ? "Don't have an account? " : "Already have an account? "}
+          <span onClick={() => setIsLogin(!isLogin)} style={{ color: "var(--emerald)", cursor: "pointer", fontWeight: 600 }}>
+            {isLogin ? "Sign up" : "Log in"}
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const [token, setToken] = useState(localStorage.getItem("jwtToken"));
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
+
+  const handleLogout = () => {
+    localStorage.removeItem("jwtToken");
+    setToken(null);
+    setResult(null);
+  };
+
+  if (!token) {
+    return <AuthModal setToken={setToken} />;
+  }
 
   const handleUpload = async (file) => {
     setLoading(true); setError(null); setResult(null);
     const form = new FormData();
     form.append("file", file);
     try {
-      const { data } = await axios.post(`${API}/parse`, form);
+      const { data } = await axios.post(`${API}/parse`, form, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setResult(data);
     } catch (e) {
       setError(e.response?.data?.detail || "Something went wrong. Please try again.");
@@ -587,7 +707,7 @@ export default function App() {
     <>
       <div className="mesh-bg" />
       <div style={{ position: "relative", zIndex: 1, minHeight: "100vh" }}>
-        <Header onHistoryClick={() => setShowHistory(true)} />
+        <Header onHistoryClick={() => setShowHistory(true)} onLogout={handleLogout} />
         {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
         <main style={{ maxWidth: 900, margin: "0 auto", padding: "2.5rem 1.5rem" }}>
 
