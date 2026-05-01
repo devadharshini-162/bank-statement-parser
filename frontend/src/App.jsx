@@ -1,19 +1,20 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import axios from "axios";
 import {
   Upload, FileText, Zap, Download, RotateCcw,
   TrendingDown, TrendingUp, AlertTriangle, Hash,
-  CheckCircle, XCircle, Search, Activity, Wifi
+  CheckCircle, XCircle, Search, Activity, Wifi, Clock
 } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis } from "recharts";
 
-const API = "http://localhost:8000";
+const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const formatCurrency = (val) =>
   val != null && val !== "" && !isNaN(val)
     ? `$${Number(val).toFixed(2)}`
     : "—";
 
-function Header() {
+function Header({ onHistoryClick }) {
   return (
     <header className="fade-up" style={{
       padding: "1.75rem 2.5rem",
@@ -38,14 +39,25 @@ function Header() {
           </p>
         </div>
       </div>
-      <div style={{
-        display: "flex", alignItems: "center", gap: 6,
-        fontSize: "11px", color: "var(--emerald)",
-        background: "var(--emerald-dim)", border: "1px solid var(--emerald-glow)",
-        borderRadius: 20, padding: "4px 12px", fontWeight: 700
-      }}>
-        <Wifi size={11} strokeWidth={2.5} />
-        LIVE
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <button onClick={onHistoryClick} style={{
+          background: "none", border: "1px solid var(--border)", borderRadius: "8px",
+          padding: "6px 12px", color: "var(--text-secondary)", fontSize: "12px",
+          display: "flex", alignItems: "center", gap: "6px", cursor: "pointer",
+          fontWeight: 600, fontFamily: "Cabinet Grotesk", transition: "all 0.2s"
+        }}>
+          <Clock size={14} />
+          History
+        </button>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6,
+          fontSize: "11px", color: "var(--emerald)",
+          background: "var(--emerald-dim)", border: "1px solid var(--emerald-glow)",
+          borderRadius: 20, padding: "4px 12px", fontWeight: 700
+        }}>
+          <Wifi size={11} strokeWidth={2.5} />
+          LIVE
+        </div>
       </div>
     </header>
   );
@@ -238,6 +250,145 @@ function StatCards({ data }) {
   );
 }
 
+const CATEGORY_COLORS = {
+  Food: "#ff7b72",
+  Transport: "#79c0ff",
+  Salary: "#56d364",
+  EMI: "#d2a8ff",
+  Utilities: "#ffa657",
+  ATM: "#8b949e",
+  UPI: "#6cb6ff",
+  Charges: "#f85149",
+  Other: "#8b949e",
+};
+
+function Dashboard({ transactions }) {
+  const categoryTotals = {};
+  let validDebits = 0;
+  transactions.forEach((t) => {
+    if (t.debit) {
+      validDebits++;
+      const cat = t.category || "Other";
+      categoryTotals[cat] = (categoryTotals[cat] || 0) + Number(t.debit);
+    }
+  });
+
+  const pieData = Object.keys(categoryTotals).map((key) => ({
+    name: key,
+    value: categoryTotals[key],
+  }));
+
+  if (validDebits === 0) return null;
+
+  return (
+    <div className="fade-up-2 glass" style={{ marginBottom: "1.5rem", padding: "1.5rem" }}>
+      <h3 style={{ fontFamily: "Cabinet Grotesk", fontWeight: 800, fontSize: "1rem", marginBottom: "1rem" }}>
+        Spending by Category
+      </h3>
+      <div style={{ height: 260, width: "100%" }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={pieData}
+              cx="50%"
+              cy="50%"
+              innerRadius={70}
+              outerRadius={100}
+              paddingAngle={4}
+              dataKey="value"
+              stroke="var(--navy)"
+              strokeWidth={3}
+            >
+              {pieData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[entry.name] || CATEGORY_COLORS.Other} />
+              ))}
+            </Pie>
+            <RechartsTooltip 
+              formatter={(value) => formatCurrency(value)}
+              contentStyle={{ background: "var(--navy)", border: "1px solid var(--border)", borderRadius: "8px", fontSize: "13px" }}
+              itemStyle={{ color: "var(--text-primary)" }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center", marginTop: "1rem" }}>
+        {pieData.map((entry, idx) => (
+          <div key={idx} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "var(--text-secondary)" }}>
+            <div style={{ width: 10, height: 10, borderRadius: "3px", backgroundColor: CATEGORY_COLORS[entry.name] || CATEGORY_COLORS.Other }} />
+            {entry.name}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HistoryModal({ onClose }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get(`${API}/history`)
+      .then(res => { setHistory(res.data); setLoading(false); })
+      .catch(err => { console.error(err); setLoading(false); });
+  }, []);
+
+  return (
+    <div style={{
+      position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+      background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+      zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "1.5rem"
+    }}>
+      <div className="glass fade-up" style={{
+        width: "100%", maxWidth: 700, maxHeight: "85vh", overflow: "hidden",
+        display: "flex", flexDirection: "column"
+      }}>
+        <div style={{ padding: "1.5rem", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h3 style={{ fontFamily: "Cabinet Grotesk", fontWeight: 800, fontSize: "1.2rem" }}>Processing History</h3>
+            <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: 4 }}>Previously parsed statements</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}>
+            <XCircle size={24} color="var(--text-secondary)" />
+          </button>
+        </div>
+        <div style={{ padding: "1.5rem", overflowY: "auto", flex: 1 }}>
+          {loading ? (
+            <div className="spinner" style={{ margin: "2rem auto" }} />
+          ) : history.length === 0 ? (
+            <p style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: "13px" }}>No history found.</p>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+              <thead>
+                <tr style={{ background: "var(--navy-3)" }}>
+                  <th style={{ padding: "10px", textAlign: "left", color: "var(--text-secondary)", fontSize: "10px", textTransform: "uppercase" }}>Date</th>
+                  <th style={{ padding: "10px", textAlign: "left", color: "var(--text-secondary)", fontSize: "10px", textTransform: "uppercase" }}>File</th>
+                  <th style={{ padding: "10px", textAlign: "right", color: "var(--text-secondary)", fontSize: "10px", textTransform: "uppercase" }}>Txns</th>
+                  <th style={{ padding: "10px", textAlign: "right", color: "var(--text-secondary)", fontSize: "10px", textTransform: "uppercase" }}>Debits</th>
+                  <th style={{ padding: "10px", textAlign: "right", color: "var(--text-secondary)", fontSize: "10px", textTransform: "uppercase" }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((h, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
+                    <td style={{ padding: "10px", color: "var(--text-secondary)" }}>{h.timestamp.split('T')[0]}</td>
+                    <td style={{ padding: "10px", fontWeight: 500 }}>{h.filename}</td>
+                    <td style={{ padding: "10px", textAlign: "right" }}>{h.total_transactions}</td>
+                    <td style={{ padding: "10px", textAlign: "right", color: "var(--red)" }}>{formatCurrency(h.total_debits)}</td>
+                    <td style={{ padding: "10px", textAlign: "right" }}>
+                      <span className={h.is_valid ? "badge-valid" : "badge-invalid"}>{h.is_valid ? "Valid" : "Flagged"}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ResultsTable({ transactions, anomalies }) {
   const anomalySet = new Set(anomalies || []);
   const [search, setSearch] = useState("");
@@ -286,7 +437,7 @@ function ResultsTable({ transactions, anomalies }) {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
           <thead>
             <tr style={{ background: "var(--navy-3)" }}>
-              {["Date", "Description", "Debit", "Credit", "Balance"].map((h) => (
+              {["Date", "Description", "Category", "Debit", "Credit", "Balance"].map((h) => (
                 <th key={h} style={{
                   padding: "10px 16px",
                   textAlign: h === "Description" ? "left" : "right",
@@ -316,6 +467,18 @@ function ResultsTable({ transactions, anomalies }) {
                       style={{ marginRight: 6, verticalAlign: "middle" }} />
                   )}
                   {t.description || "—"}
+                </td>
+                <td style={{ padding: "10px 16px", textAlign: "left" }}>
+                  {t.category ? (
+                    <span style={{
+                      fontSize: "10px", fontWeight: 700, padding: "3px 8px", borderRadius: "12px",
+                      backgroundColor: `${CATEGORY_COLORS[t.category] || CATEGORY_COLORS.Other}15`,
+                      color: CATEGORY_COLORS[t.category] || CATEGORY_COLORS.Other,
+                      border: `1px solid ${CATEGORY_COLORS[t.category] || CATEGORY_COLORS.Other}30`
+                    }}>
+                      {t.category}
+                    </span>
+                  ) : "—"}
                 </td>
                 <td style={{
                   padding: "10px 16px", textAlign: "right",
@@ -402,6 +565,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const handleUpload = async (file) => {
     setLoading(true); setError(null); setResult(null);
@@ -423,7 +587,8 @@ export default function App() {
     <>
       <div className="mesh-bg" />
       <div style={{ position: "relative", zIndex: 1, minHeight: "100vh" }}>
-        <Header />
+        <Header onHistoryClick={() => setShowHistory(true)} />
+        {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
         <main style={{ maxWidth: 900, margin: "0 auto", padding: "2.5rem 1.5rem" }}>
 
           {!result && !loading && (
@@ -489,6 +654,7 @@ export default function App() {
             <>
               <DownloadBar result={result} onReset={handleReset} />
               <StatCards data={result} />
+              <Dashboard transactions={result.transactions} />
               {result.transactions && result.transactions.length > 0 && (
                 <ResultsTable
                   transactions={result.transactions}
